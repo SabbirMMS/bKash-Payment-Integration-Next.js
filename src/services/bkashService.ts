@@ -28,19 +28,27 @@ class BkashService {
   private tokenExpiry: number | null = null;
 
   constructor() {
+    // Note: Mirroring the provided PHP snippet's logic: 
+    // IsTest (True) -> Live URL, IsTest (False) -> Sandbox URL
+    const isTest = process.env.BKASH_TEST_MODE === 'true';
+    
     this.config = {
       appKey: process.env.BKASH_APP_KEY || '',
       appSecret: process.env.BKASH_APP_SECRET || '',
       username: process.env.BKASH_USERNAME || '',
       password: process.env.BKASH_PASSWORD || '',
-      baseUrl: process.env.BKASH_TEST_MODE === 'true'
-        ? process.env.BKASH_CHECKOUT_URL_SANDBOX || 'https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized'
-        : process.env.BKASH_CHECKOUT_URL_LIVE || 'https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized',
+      baseUrl: (isTest
+        ? process.env.BKASH_CHECKOUT_URL_LIVE || 'https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized'
+        : process.env.BKASH_CHECKOUT_URL_SANDBOX || 'https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized').replace(/\/+$/, ''),
     };
 
+    console.log('--- bKash SDK Initialized ---');
+    console.log('Mode:', isTest ? 'LIVE (via Test Mode=true config)' : 'SANDBOX');
+    console.log('Base URL:', this.config.baseUrl);
+    
     // Verify credentials early
     const missing = Object.entries(this.config)
-      .filter(([_, value]) => !value)
+      .filter(([key, value]) => !value && key !== 'baseUrl')
       .map(([key]) => key);
 
     if (missing.length > 0) {
@@ -53,12 +61,13 @@ class BkashService {
    */
   async generateToken(): Promise<string> {
     console.log('Generating bKash token...');
-    console.log('Base URL:', this.config.baseUrl);
     try {
       const response = await fetch(`${this.config.baseUrl}/checkout/token/grant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
           'username': this.config.username,
           'password': this.config.password,
         },
@@ -66,12 +75,20 @@ class BkashService {
           app_key: this.config.appKey,
           app_secret: this.config.appSecret,
         }),
+        cache: 'no-store',
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error(`Invalid JSON response from bKash: ${responseText.substring(0, 100)}`);
+      }
       
       if (!response.ok) {
-        console.error('bKash Token Grant Failed:', data);
+        console.error('bKash Token Grant Failed Status:', response.status);
+        console.error('bKash Token Grant Response:', responseText);
         throw new Error(data.statusMessage || `Failed to generate bKash token: ${response.status}`);
       }
 
@@ -90,13 +107,15 @@ class BkashService {
   async createPayment(amount: string, invoiceNumber: string, callbackURL: string): Promise<BkashPaymentResponse> {
     const token = await this.generateToken();
 
-    console.log('Creating bKash payment for amount:', amount, 'invoice:', invoiceNumber);
+    console.log('Creating bKash payment...', { amount, invoiceNumber, callbackURL });
 
     try {
       const response = await fetch(`${this.config.baseUrl}/checkout/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
           'Authorization': token,
           'X-APP-Key': this.config.appKey,
         },
@@ -109,13 +128,21 @@ class BkashService {
           merchantInvoiceNumber: invoiceNumber,
           callbackURL: callbackURL,
         }),
+        cache: 'no-store',
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error(`Invalid JSON response from bKash: ${responseText.substring(0, 100)}`);
+      }
+
       console.log('bKash Create Payment Response:', data);
 
       if (!response.ok || data.statusCode !== '0000') {
-        throw new Error(data.statusMessage || 'Failed to create bKash payment');
+        throw new Error(data.statusMessage || `bKash Error: ${data.statusCode} - ${data.statusMessage}`);
       }
 
       return data;
@@ -136,16 +163,18 @@ class BkashService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
           'Authorization': token,
           'X-APP-Key': this.config.appKey,
         },
         body: JSON.stringify({
           paymentID: paymentID,
         }),
+        cache: 'no-store',
       });
 
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error: any) {
       console.error('bKash Execute Payment Error:', error.message);
       throw error;
@@ -153,7 +182,7 @@ class BkashService {
   }
 
   /**
-   * Query Payment (to check status if callback fails)
+   * Query Payment
    */
   async queryPayment(paymentID: string): Promise<any> {
     const token = await this.generateToken();
@@ -163,12 +192,15 @@ class BkashService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
           'Authorization': token,
           'X-APP-Key': this.config.appKey,
         },
         body: JSON.stringify({
           paymentID: paymentID,
         }),
+        cache: 'no-store',
       });
 
       return await response.json();

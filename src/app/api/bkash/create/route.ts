@@ -15,9 +15,13 @@ export async function POST(req: Request) {
 
     const paymentData = await bkashService.createPayment(amount, invoiceNumber, callbackURL);
 
+    console.log(paymentData);
+
     return NextResponse.json(paymentData);
   } catch (error: any) {
-    console.error("Payment Creation Error:", error);
+    console.error("--- Payment Creation Error ---");
+    console.error("Message:", error.message);
+    if (error.stack) console.error("Stack Trace:", error.stack);
     return NextResponse.json({ error: error.message || "Failed to create payment" }, { status: 500 });
   }
 }

@@ -35,6 +35,8 @@ export default function ProductsPage() {
         }),
       });
 
+      console.log(response);
+
       const data = await response.json();
 
       if (data.bkashURL) {
