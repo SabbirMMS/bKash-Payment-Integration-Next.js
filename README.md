@@ -18,16 +18,16 @@ A professional, feature-rich bKash Tokenized Checkout integration for Next.js 14
 
 ### 2. Installation
 ```bash
-git clone <repository-url>
+git clone https://github.com/SabbirMMS/bKash-Payment-Integration-Next.js
 cd bkash-payment
 npm install
 ```
 
 ### 3. Environment Setup
-Copy the `.env.example` file to `.env.local` and fill in your credentials.
+Copy the `.env.example` file to `.env` or `.env.local` and fill in your credentials.
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
 ### 4. Run the App
