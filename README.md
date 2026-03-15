@@ -97,3 +97,6 @@ curl --location 'https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/cre
 - `src/app/page.tsx`: Home screen with Premium Mode Switcher.
 - `src/app/products//`: Dummy product listing with payable items.
 - `src/app/status//`: Success/Fail status feedback pages.
+
+
+> Private Note: OG Credentials are stored on `keep` app of professional email, it's ISP project's Credentials holding for live test!
