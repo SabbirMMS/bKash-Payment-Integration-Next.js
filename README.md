@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# bKash Payment Integration for Next.js
 
-## Getting Started
+A professional, feature-rich bKash Tokenized Checkout integration for Next.js 14+ (App Router). This project provides a seamless experience for both developers and users, featuring a premium UI with glassmorphism and real-time environment switching.
 
-First, run the development server:
+## 🚀 Features
 
+- **Dual Environment Support**: Toggle between bKash **Sandbox** and **Live** modes with a single click.
+- **Next.js 15+ & TypeScript**: Built with the latest Next.js features and full type safety.
+- **Premium UI/UX**: Stunning design with dynamic color themes (Blue for Sandbox, Pink for Live).
+- **Secure Backend**: robust `BkashService` ported from Laravel with advanced error handling and logging.
+- **Comprehensive Testing**: Includes sandbox credentials and primary test wallets for successful and failed test cases.
+
+## 🛠️ Getting Started
+
+### 1. Prerequisites
+- Node.js 18.x or higher
+- bKash Merchant Credentials (Sandbox or Live)
+
+### 2. Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd bkash-payment
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Environment Setup
+Copy the `.env.example` file to `.env.local` and fill in your credentials.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Run the App
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to see the result.
 
-## Learn More
+## 🧪 Testing in Sandbox
 
-To learn more about Next.js, take a look at the following resources:
+Use the following details to simulate various payment scenarios in the Sandbox environment:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Test Credentials
+- **PIN**: `12121`
+- **OTP**: `123456`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Active Test Wallets (Success)
+- `01770618575`
+- `01929918378`
+- `01770618576`
+- `01877722345`
+- `01619777282`
+- `01619777283`
 
-## Deploy on Vercel
+### Special Case Wallets (Failure)
+- **Insufficient Balance**: `01823074817`
+- **Debit Block**: `01823074818`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+> [!NOTE]
+> When testing on browsers, you may need to disable CORS security or ensure your callback URL matches the base URL configured in bKash settings.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📡 API Reference (CURL Examples)
+
+### 1. Grant Token (Sandbox)
+```bash
+curl --location 'https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized/checkout/token/grant' \
+--header 'username: sandboxTokenizedUser02' \
+--header 'password: sandboxTokenizedUser02@12345' \
+--header 'Content-Type: application/json' \
+--data '{
+    "app_key":"4f6o0cjiki2rfm34kfdadl1eqq",
+    "app_secret":"2is7hdktrekvrbljjh44ll3d9l1dtjo4pasmjvs5vl5qr3fug4b"
+}'
+```
+
+### 2. Create Payment (Live)
+```bash
+curl --location 'https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/create' \
+--header 'Authorization: <YOUR_ID_TOKEN>' \
+--header 'X-APP-Key: <YOUR_APP_KEY>' \
+--header 'Content-Type: application/json' \
+--data '{
+  "mode": "0011",
+  "amount": 500,
+  "payerReference": "4839201746",
+  "currency": "BDT",
+  "intent": "sale",
+  "merchantInvoiceNumber": "INV-1001",
+  "callbackURL": "http://localhost:3000/api/bkash/callback"
+}'
+```
+
+## 📂 Project Structure
+
+- `src/services/bkashService.ts`: Core logic for API interaction.
+- `src/app/api/bkash/`: Server-side routes for creating and handling callbacks.
+- `src/app/page.tsx`: Home screen with Premium Mode Switcher.
+- `src/app/products//`: Dummy product listing with payable items.
+- `src/app/status//`: Success/Fail status feedback pages.
