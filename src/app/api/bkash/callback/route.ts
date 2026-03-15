@@ -17,15 +17,15 @@ export async function GET(req: Request) {
 
   if (status === "success") {
     try {
-      const response = await bkashService.executePayment(paymentID, mode);
+      const result = await bkashService.handlePostPayment(paymentID, mode);
 
-      if (response.transactionStatus === "Completed") {
+      if (result.status && result.data) {
         return NextResponse.redirect(
-          `${baseUrl}/status?status=success&trxID=${response.trxID}&amount=${response.amount}`
+          `${baseUrl}/status?status=success&trxID=${result.data.trxID}&amount=${result.data.amount}`
         );
       } else {
         return NextResponse.redirect(
-          `${baseUrl}/status?status=failed&message=${response.statusMessage || "Execution failed"}`
+          `${baseUrl}/status?status=failed&message=${result.message || "Execution failed"}`
         );
       }
     } catch (error: any) {

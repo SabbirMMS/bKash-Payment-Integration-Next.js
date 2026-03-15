@@ -212,6 +212,55 @@ class BkashService {
       throw error;
     }
   }
+  /**
+   * Handle Post Payment (Verification and Database Simulation)
+   * Mimics the logic from handlePostPayment in PHP to simulate status update and payment recording.
+   */
+  async handlePostPayment(paymentID: string, mode: "sandbox" | "live"): Promise<{ status: boolean; message?: string; data?: any }> {
+    try {
+      console.log(`--- Handling Post Payment for [${paymentID}] in [${mode}] ---`);
+      const response = await this.executePayment(paymentID, mode);
+
+      if (response && response.transactionStatus === "Completed") {
+        // --- SIMULATED DATABASE TRANSACTION START ---
+        console.log("SIMULATION: Database Transaction Started");
+        
+        // 1. Update Invoice status (Simulated: SubscriptionInvoice::findOrFail($id)->update(['status' => 'paid']))
+        console.log(`SIMULATION: Invoice for Payment ID [${paymentID}] status updated to [PAID]`);
+
+        // 2. Record Payment (Simulated: DB::table('subscription_payments')->insert([...]))
+        const paymentRecord = {
+          payment_id: paymentID,
+          amount: response.amount,
+          payment_method: 'online',
+          transaction_reference: response.trxID,
+          payment_date: new Date().toISOString().split('T')[0],
+          status: 'success',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        console.log("SIMULATION: Payment Recorded:", paymentRecord);
+
+        console.log("SIMULATION: Database Transaction Committed");
+        // --- SIMULATED DATABASE TRANSACTION END ---
+
+        return {
+          status: true,
+          data: response
+        };
+      }
+
+      console.error(`bKash Post Payment Error: Payment not completed. Status: ${response.transactionStatus}`);
+      return {
+        status: false,
+        message: response.statusMessage || 'Payment execution failed'
+      };
+
+    } catch (error: any) {
+      console.error('bKash Post Payment Error:', error.message);
+      return { status: false, message: 'Internal Server Error' };
+    }
+  }
 }
 
 export const bkashService = new BkashService();
