@@ -118,7 +118,7 @@ function StatusContent() {
                   trxID: trxID,
                   amount: amount,
                   message: message,
-                  signature: searchParams.get('signature'),
+                  token: searchParams.get('token'),
                   raw_params: Object.fromEntries(searchParams.entries())
                 }, null, 2)}
               </pre>

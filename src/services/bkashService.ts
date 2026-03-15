@@ -216,11 +216,11 @@ class BkashService {
    * Handle Post Payment (Verification and Database Simulation)
    * Mimics the logic from handlePostPayment in PHP to simulate status update and payment recording.
    */
-  async handlePostPayment(paymentID: string, mode: "sandbox" | "live"): Promise<{ status: boolean; message?: string; data?: any }> {
+  async handlePostPayment(paymentID: string, mode: "sandbox" | "live"): Promise<{ status: boolean; message?: string; data?: any; token?: string }> {
     try {
       console.log(`--- Handling Post Payment for [${paymentID}] in [${mode}] ---`);
       const response = await this.executePayment(paymentID, mode);
-
+      console.log("response_verification", response)
       if (response && response.transactionStatus === "Completed") {
         // --- SIMULATED DATABASE TRANSACTION START ---
         console.log("SIMULATION: Database Transaction Started");
@@ -246,11 +246,13 @@ class BkashService {
 
         return {
           status: true,
-          data: response
+          data: response,
+          token: this.token || undefined
         };
       }
 
       console.error(`bKash Post Payment Error: Payment not completed. Status: ${response.transactionStatus}`);
+      alert(`bKash Post Payment Error: Payment not completed. Status: ${response.transactionStatus}`);
       return {
         status: false,
         message: response.statusMessage || 'Payment execution failed'
@@ -258,7 +260,11 @@ class BkashService {
 
     } catch (error: any) {
       console.error('bKash Post Payment Error:', error.message);
-      return { status: false, message: 'Internal Server Error' };
+      return { 
+        status: false, 
+        message: 'Internal Server Error',
+        token: this.token || undefined
+      };
     }
   }
 }
