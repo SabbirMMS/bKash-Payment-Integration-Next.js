@@ -1,21 +1,24 @@
 import { bkashService } from "@/services/bkashService";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   try {
     const { amount, invoiceNumber } = await req.json();
+    const cookieStore = await cookies();
+    const mode = (cookieStore.get("bkash_mode")?.value || "sandbox") as "sandbox" | "live";
 
     if (!amount || !invoiceNumber) {
       return NextResponse.json({ error: "Amount and Invoice Number are required" }, { status: 400 });
     }
 
     // Determine the base URL for callback
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const callbackURL = `${baseUrl}/api/bkash/callback`;
 
-    const paymentData = await bkashService.createPayment(amount, invoiceNumber, callbackURL);
+    const paymentData = await bkashService.createPayment(amount, invoiceNumber, callbackURL, mode);
 
-    console.log(paymentData);
+    console.log(`Payment created [${mode}]:`, paymentData);
 
     return NextResponse.json(paymentData);
   } catch (error: any) {
