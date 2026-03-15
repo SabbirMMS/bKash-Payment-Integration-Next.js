@@ -90,6 +90,28 @@ curl --location 'https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/cre
 }'
 ```
 
+### 3. Execute Payment (Sandbox)
+Once your callback receives a `paymentID` and a `status=success`, you must execute the payment to complete the transaction.
+
+```bash
+curl --location 'https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized/checkout/execute' \
+--header 'Authorization: <YOUR_ID_TOKEN>' \
+--header 'X-APP-Key: 4f6o0cjiki2rfm34kfdadl1eqq' \
+--header 'Content-Type: application/json' \
+--data '{
+  "paymentID": "TR0011pPDmbc81773563864436"
+}'
+```
+
+## 🔄 Payment Verification Flow
+
+1. **Initiate**: Frontend calls `/api/bkash/create`.
+2. **Redirect**: User completes payment on bKash UI.
+3. **Callback**: bKash redirects to `/api/bkash/callback`. 
+   - Backend calls `executePayment` to finalize.
+   - Backend calls `handlePostPayment` to simulate DB updates.
+4. **Finalize**: User is redirected to `/status` with `trxID`, `amount`, and `paymentID` in the URL.
+
 ## 📂 Project Structure
 
 - `src/services/bkashService.ts`: Core logic for API interaction.

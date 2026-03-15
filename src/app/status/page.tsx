@@ -12,6 +12,8 @@ function StatusContent() {
   const amount = searchParams.get('amount');
   const [mode, setMode] = useState<'sandbox' | 'live'>('sandbox');
 
+  console.log(searchParams);
+
   useEffect(() => {
     const savedMode = document.cookie
       .split('; ')
@@ -28,8 +30,8 @@ function StatusContent() {
   const textClass = mode === 'live' ? 'text-[#e2136e]' : 'text-blue-500';
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)] text-center animate-in fade-in zoom-in duration-500">
+    <div className="min-h-screen bg-[#f3f4f6] flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)] text-center animate-in fade-in zoom-in duration-500 relative overflow-hidden">
         <div className={`w-24 h-24 mx-auto mb-8 rounded-full flex items-center justify-center ${
           isSuccess 
             ? 'bg-green-100 text-green-500' 
@@ -87,6 +89,45 @@ function StatusContent() {
             Back to Home
           </Link>
         </div>
+      </div>
+
+      {/* Developer Debug Block */}
+      <div className="max-w-md w-full mt-8">
+        <details className="group bg-white/50 backdrop-blur-sm border border-gray-200 rounded-2xl overflow-hidden transition-all duration-300">
+          <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/80 transition-colors">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Developer Debug Info</span>
+            </div>
+            <svg 
+              className="w-4 h-4 text-gray-400 transition-transform duration-300 group-open:rotate-180" 
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div className="p-4 pt-0 text-left">
+            <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+              <pre className="text-[10px] sm:text-xs font-mono text-green-400 leading-relaxed">
+                {JSON.stringify({
+                  environment: mode,
+                  status: status,
+                  paymentID: searchParams.get('paymentID'),
+                  trxID: trxID,
+                  amount: amount,
+                  message: message,
+                  signature: searchParams.get('signature'),
+                  raw_params: Object.fromEntries(searchParams.entries())
+                }, null, 2)}
+              </pre>
+            </div>
+            <p className="mt-4 text-[10px] text-gray-400 font-medium">
+              Note: This block is only for development/testing visibility.
+            </p>
+          </div>
+        </details>
       </div>
     </div>
   );

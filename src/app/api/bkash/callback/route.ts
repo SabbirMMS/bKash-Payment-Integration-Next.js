@@ -21,11 +21,11 @@ export async function GET(req: Request) {
 
       if (result.status && result.data) {
         return NextResponse.redirect(
-          `${baseUrl}/status?status=success&trxID=${result.data.trxID}&amount=${result.data.amount}`
+          `${baseUrl}/status?status=success&trxID=${result.data.trxID}&amount=${result.data.amount}&paymentID=${paymentID}`
         );
       } else {
         return NextResponse.redirect(
-          `${baseUrl}/status?status=failed&message=${result.message || "Execution failed"}`
+          `${baseUrl}/status?status=failed&message=${result.message || "Execution failed"}&paymentID=${paymentID}`
         );
       }
     } catch (error: any) {
