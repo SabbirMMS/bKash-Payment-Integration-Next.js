@@ -56,8 +56,8 @@ Use the following details to simulate various payment scenarios in the Sandbox e
 - **Insufficient Balance**: `01823074817`
 - **Debit Block**: `01823074818`
 
-> [!NOTE]
-> When testing on browsers, you may need to disable CORS security or ensure your callback URL matches the base URL configured in bKash settings.
+> [!IMPORTANT]
+> **Live Environment Restrictions**: bKash Live API is strictly restricted. For the `callbackURL` to work, you MUST use `localhost` (for local development) or a domain that has been explicitly whitelisted by bKash. Using a local network IP (e.g., `192.168.0.x`) in the `callbackURL` will result in a `Forbidden` error.
 
 ## 📡 API Reference (CURL Examples)
 

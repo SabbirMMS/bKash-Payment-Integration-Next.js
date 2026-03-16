@@ -13,11 +13,11 @@ bKash Live requires your server's **Public IP** to be whitelisted.
 - **Why Project might fail**: If the project is running on a different environment (or if there's a proxy/VPN active), the outgoing IP might be different.
 - **Note**: Since you are running both on the same machine, this is likely **NOT** the issue unless Postman is using a specific proxy.
 
-### 3. Callback URL Domain
-bKash Live often validates the `callbackURL`. 
-- Some accounts are restricted to only allow `https`.
-- Some accounts only allow specific domains (e.g., `yourdomain.com`).
-- Using a local IP like `192.168.0.199` might be blocked by the Live gateway.
+### 3. Callback URL Restrictions (CRITICAL)
+bKash Live API validates the `callbackURL` strictly.
+- **Allowed**: `localhost` (for local development) or your **registered/whitelisted domain** (e.g., `https://example.com`).
+- **Blocked**: Local IP addresses (e.g., `192.168.0.199`).
+- **Issue**: If you use your local IP in `.env` to test on other devices on your network, bKash Live will return a `Forbidden` error because it only trusts whitelisted hostnames. Use `http://localhost:3000` for local live testing.
 
 ### 4. Special Characters in Merchant Invoice
 If the `merchantInvoiceNumber` (which we generate as `INV-timestamp`) contains characters or a format bKash doesn't like for Live accounts, it can result in a Forbidden or Validation error.
