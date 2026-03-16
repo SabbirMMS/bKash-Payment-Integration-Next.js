@@ -132,15 +132,12 @@ class BkashService {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
-          "User-Agent":
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-          Authorization: token,
+          "Authorization": token,
           "X-APP-Key": config.appKey,
         },
         body: JSON.stringify({
           mode: "0011",
-          amount: amount.toString(), // Ensure string, some bKash APIs are picky
+          amount: parseFloat(amount), // Send as numeric for Live compatibility
           payerReference: Math.floor(
             1000000000 + Math.random() * 9000000000,
           ).toString(),
