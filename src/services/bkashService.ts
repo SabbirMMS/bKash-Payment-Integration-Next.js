@@ -21,8 +21,14 @@ export interface BkashPaymentResponse {
 }
 
 class BkashService {
-  private token: string | null = null;
-  private currentMode: "sandbox" | "live" | null = null;
+  // Separate token caches for sandbox and live to prevent environment crosstalk
+  private tokens: {
+    sandbox: string | null;
+    live: string | null;
+  } = {
+    sandbox: null,
+    live: null,
+  };
 
   private getConfig(mode: "sandbox" | "live"): BkashConfig {
     if (mode === "live") {
@@ -31,7 +37,10 @@ class BkashService {
         appSecret: process.env.BKASH_LIVE_APP_SECRET || "",
         username: process.env.BKASH_LIVE_USERNAME || "",
         password: process.env.BKASH_LIVE_PASSWORD || "",
-        baseUrl: (process.env.BKASH_LIVE_BASE_URL || "https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized").replace(/\/+$/, ""),
+        baseUrl: (
+          process.env.BKASH_LIVE_BASE_URL ||
+          "https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized"
+        ).replace(/\/+$/, ""),
       };
     }
     return {
@@ -39,7 +48,10 @@ class BkashService {
       appSecret: process.env.BKASH_SANDBOX_APP_SECRET || "",
       username: process.env.BKASH_SANDBOX_USERNAME || "",
       password: process.env.BKASH_SANDBOX_PASSWORD || "",
-      baseUrl: (process.env.BKASH_SANDBOX_BASE_URL || "https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized").replace(/\/+$/, ""),
+      baseUrl: (
+        process.env.BKASH_SANDBOX_BASE_URL ||
+        "https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized"
+      ).replace(/\/+$/, ""),
     };
   }
 
@@ -48,21 +60,17 @@ class BkashService {
    */
   async generateToken(mode: "sandbox" | "live"): Promise<string> {
     const config = this.getConfig(mode);
-    
-    // Clear token if mode changed to ensure fresh authentication for correct environment
-    if (this.currentMode !== mode) {
-      this.token = null;
-      this.currentMode = mode;
-    }
 
-    console.log(`Generating bKash token for [${mode.toUpperCase()}]...`);
+    console.log(`[BkashService] Generating token for environment: [${mode.toUpperCase()}]`);
+    
     try {
       const response = await fetch(`${config.baseUrl}/checkout/token/grant`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
           username: config.username,
           password: config.password,
         },
@@ -78,20 +86,25 @@ class BkashService {
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        throw new Error(`Invalid JSON response from bKash: ${responseText.substring(0, 100)}`);
+        throw new Error(
+          `[${mode}] Invalid JSON response from bKash Token: ${responseText.substring(0, 100)}`,
+        );
       }
 
-      if (!response.ok) {
-        console.error(`bKash Token Grant Failed [${mode}] Status:`, response.status);
-        console.error(`bKash Token Grant Response:`, responseText);
-        throw new Error(data.statusMessage || `Failed to generate bKash token: ${response.status}`);
+      if (!response.ok || data.statusCode !== "0000") {
+        console.error(`[BkashService] Token Grant Failed [${mode}] Status: ${response.status}`);
+        console.error(`[BkashService] Token Grant Response [${mode}]:`, responseText);
+        throw new Error(
+          data.statusMessage ||
+            `Failed to generate bKash token for ${mode} (${data.statusCode || response.status})`,
+        );
       }
 
-      console.log(`bKash Token generated successfully for [${mode}]`);
-      this.token = data.id_token;
-      return this.token!;
+      console.log(`[BkashService] Token generated successfully for [${mode.toUpperCase()}]`);
+      this.tokens[mode] = data.id_token;
+      return data.id_token;
     } catch (error: any) {
-      console.error(`bKash Token Error Details [${mode}]:`, error);
+      console.error(`[BkashService] Token Error Details [${mode}]:`, error.message);
       throw error;
     }
   }
@@ -103,12 +116,16 @@ class BkashService {
     amount: string,
     invoiceNumber: string,
     callbackURL: string,
-    mode: "sandbox" | "live"
+    mode: "sandbox" | "live",
   ): Promise<BkashPaymentResponse> {
     const token = await this.generateToken(mode);
     const config = this.getConfig(mode);
 
-    console.log(`Creating bKash payment [${mode}]...`, { amount, invoiceNumber, callbackURL });
+    console.log(`[BkashService] Creating payment in [${mode.toUpperCase()}]...`, {
+      amount,
+      invoiceNumber,
+      callbackURL,
+    });
 
     try {
       const response = await fetch(`${config.baseUrl}/checkout/create`, {
@@ -116,14 +133,17 @@ class BkashService {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
           Authorization: token,
           "X-APP-Key": config.appKey,
         },
         body: JSON.stringify({
           mode: "0011",
-          amount: amount,
-          payerReference: Math.floor(1000000000 + Math.random() * 9000000000).toString(),
+          amount: amount.toString(), // Ensure string, some bKash APIs are picky
+          payerReference: Math.floor(
+            1000000000 + Math.random() * 9000000000,
+          ).toString(),
           currency: "BDT",
           intent: "sale",
           merchantInvoiceNumber: invoiceNumber,
@@ -137,18 +157,24 @@ class BkashService {
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        throw new Error(`Invalid JSON response from bKash: ${responseText.substring(0, 100)}`);
+        throw new Error(
+          `[${mode}] Invalid JSON response from bKash Create: ${responseText.substring(0, 100)}`,
+        );
       }
 
-      console.log(`bKash Create Payment Response [${mode}]:`, data);
+      console.log(`[BkashService] Create Payment Response [${mode}]:`, data);
 
       if (!response.ok || data.statusCode !== "0000") {
-        throw new Error(data.statusMessage || `bKash Error: ${data.statusCode} - ${data.statusMessage}`);
+        console.error(`[BkashService] Create Payment Failed [${mode}]. Raw Response:`, responseText);
+        throw new Error(
+          data.statusMessage ||
+            `bKash Error: ${data.statusCode || 'N/A'} - ${data.statusMessage || 'Unkown Error'}`,
+        );
       }
 
       return data;
     } catch (error: any) {
-      console.error(`bKash Create Payment Error Details [${mode}]:`, error);
+      console.error(`[BkashService] Create Payment Error [${mode}]:`, error.message);
       throw error;
     }
   }
@@ -156,9 +182,14 @@ class BkashService {
   /**
    * Execute Payment
    */
-  async executePayment(paymentID: string, mode: "sandbox" | "live"): Promise<any> {
+  async executePayment(
+    paymentID: string,
+    mode: "sandbox" | "live",
+  ): Promise<any> {
     const token = await this.generateToken(mode);
     const config = this.getConfig(mode);
+
+    console.log(`[BkashService] Executing payment [${paymentID}] in [${mode.toUpperCase()}]...`);
 
     try {
       const response = await fetch(`${config.baseUrl}/checkout/execute`, {
@@ -166,7 +197,8 @@ class BkashService {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
           Authorization: token,
           "X-APP-Key": config.appKey,
         },
@@ -176,9 +208,11 @@ class BkashService {
         cache: "no-store",
       });
 
-      return await response.json();
+      const responseText = await response.text();
+      console.log(`[BkashService] Execute Payment Response [${mode}]:`, responseText);
+      return JSON.parse(responseText);
     } catch (error: any) {
-      console.error(`bKash Execute Payment Error [${mode}]:`, error.message);
+      console.error(`[BkashService] Execute Payment Error [${mode}]:`, error.message);
       throw error;
     }
   }
@@ -186,84 +220,77 @@ class BkashService {
   /**
    * Query Payment
    */
-  async queryPayment(paymentID: string, mode: "sandbox" | "live"): Promise<any> {
+  async queryPayment(
+    paymentID: string,
+    mode: "sandbox" | "live",
+  ): Promise<any> {
     const token = await this.generateToken(mode);
     const config = this.getConfig(mode);
 
     try {
-      const response = await fetch(`${config.baseUrl}/checkout/payment/status`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-          Authorization: token,
-          "X-APP-Key": config.appKey,
+      const response = await fetch(
+        `${config.baseUrl}/checkout/payment/status`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "User-Agent":
+              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+            Authorization: token,
+            "X-APP-Key": config.appKey,
+          },
+          body: JSON.stringify({
+            paymentID: paymentID,
+          }),
+          cache: "no-store",
         },
-        body: JSON.stringify({
-          paymentID: paymentID,
-        }),
-        cache: "no-store",
-      });
+      );
 
       return await response.json();
     } catch (error: any) {
-      console.error(`bKash Query Payment Error [${mode}]:`, error.message);
+      console.error(`[BkashService] Query Payment Error [${mode}]:`, error.message);
       throw error;
     }
   }
+
   /**
    * Handle Post Payment (Verification and Database Simulation)
-   * Mimics the logic from handlePostPayment in PHP to simulate status update and payment recording.
    */
-  async handlePostPayment(paymentID: string, mode: "sandbox" | "live"): Promise<{ status: boolean; message?: string; data?: any; token?: string }> {
+  async handlePostPayment(
+    paymentID: string,
+    mode: "sandbox" | "live",
+  ): Promise<{
+    status: boolean;
+    message?: string;
+    data?: any;
+    token?: string;
+  }> {
     try {
-      console.log(`--- Handling Post Payment for [${paymentID}] in [${mode}] ---`);
+      console.log(`[BkashService] --- Handling Post Payment [${paymentID}] in [${mode.toUpperCase()}] ---`);
       const response = await this.executePayment(paymentID, mode);
-      console.log("response_verification", response)
+      
       if (response && response.transactionStatus === "Completed") {
-        // --- SIMULATED DATABASE TRANSACTION START ---
-        console.log("SIMULATION: Database Transaction Started");
+        console.log(`[BkashService] SIMULATION: Payment Verified. trxID: ${response.trxID}`);
         
-        // 1. Update Invoice status (Simulated: SubscriptionInvoice::findOrFail($id)->update(['status' => 'paid']))
-        console.log(`SIMULATION: Invoice for Payment ID [${paymentID}] status updated to [PAID]`);
-
-        // 2. Record Payment (Simulated: DB::table('subscription_payments')->insert([...]))
-        const paymentRecord = {
-          payment_id: paymentID,
-          amount: response.amount,
-          payment_method: 'online',
-          transaction_reference: response.trxID,
-          payment_date: new Date().toISOString().split('T')[0],
-          status: 'success',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        console.log("SIMULATION: Payment Recorded:", paymentRecord);
-
-        console.log("SIMULATION: Database Transaction Committed");
-        // --- SIMULATED DATABASE TRANSACTION END ---
-
         return {
           status: true,
           data: response,
-          token: this.token || undefined
+          token: this.tokens[mode] || undefined,
         };
       }
 
-      console.error(`bKash Post Payment Error: Payment not completed. Status: ${response.transactionStatus}`);
-      alert(`bKash Post Payment Error: Payment not completed. Status: ${response.transactionStatus}`);
+      console.error(`[BkashService] Post Payment Failed. Status: ${response?.transactionStatus || 'Unknown'}`);
       return {
         status: false,
-        message: response.statusMessage || 'Payment execution failed'
+        message: response?.statusMessage || "Payment execution failed",
       };
-
     } catch (error: any) {
-      console.error('bKash Post Payment Error:', error.message);
-      return { 
-        status: false, 
-        message: 'Internal Server Error',
-        token: this.token || undefined
+      console.error(`[BkashService] Post Payment Critical Error [${mode}]:`, error.message);
+      return {
+        status: false,
+        message: "Internal Server Error",
+        token: this.tokens[mode] || undefined,
       };
     }
   }
